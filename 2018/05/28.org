@@ -1,0 +1,35 @@
+* 日記
+** staticサイトジェネレーターすら面倒
+*** 検索はgit pullしてgrepすれば良いのでは？
+*** もしくはgithubの検索窓から
+*** 依存が少ない
+**** git, テキストエディタさえあれば良い
+**** hugoも同じくらい？
+**** でもデプロイ面倒だった。あといちいちhugoのバイナリが必要(当然だけど)
+*** plain text & git管理
+
+* emacs拡張
+#+BEGIN_SRC emacs-lisp
+(defvar diary-root-dir (expand-file-name "~/dev/diary"))
+(defvar diary-year-format "%Y")
+(defvar diary-month-format "%m")
+(defvar diary-file-format (format "%s/%s/%d.org"
+                                  diary-year-format
+                                  diary-month-format))
+(defun diary-open ()
+  (interactive)
+  (let ((file (format "%s/%s"
+                      diary-root-dir
+                      (format-time-string diary-file-format))))
+    (make-directory (file-name-directory file) t)
+    (display-buffer (find-file-noselect file))
+    ))
+
+(defun diary-list ()
+  (interactive)
+  (helm-find-files-1 (format "%s/%s/"
+                             diary-root-dir
+                             (format-time-string (format "%s/%s"
+                                                         diary-year-format
+                                                         diary-month-format)))))
+#+END_SRC
