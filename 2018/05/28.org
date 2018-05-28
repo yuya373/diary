@@ -1,4 +1,3 @@
-#+OPTIONS: \n:t
 * 日記
 ** staticサイトジェネレーターすら面倒
    - 検索はgit pullしてgrepすれば良いのでは？
@@ -8,8 +7,8 @@
     - hugoも同じくらい？
     - でもデプロイ面倒だった。あといちいちhugoのバイナリが必要(当然だけど)
 ** でもgithubのorgモードのcssは見にくいな...
-   改行は
-   どうすれば？？？
+   改行は\\
+   どうすれば？？？\\
    [[https://gist.github.com/hoeltgman/3825415#12-meaning-of-the-options][Org-mode Syntax Cheat sheet]]
    #+OPTIONS: \n:
    はDOES NOT WORKとあるな...
