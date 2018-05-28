@@ -7,6 +7,7 @@
 **** hugoも同じくらい？
 **** でもデプロイ面倒だった。あといちいちhugoのバイナリが必要(当然だけど)
 *** plain text & git管理
+** でもgithubのorgモードのcssは見にくいな...
 
 * emacs拡張
 #+BEGIN_SRC emacs-lisp
