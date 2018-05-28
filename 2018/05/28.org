@@ -10,7 +10,9 @@
 ** でもgithubのorgモードのcssは見にくいな...
    改行は
    どうすれば？？？
-
+   [[https://gist.github.com/hoeltgman/3825415#12-meaning-of-the-options][Org-mode Syntax Cheat sheet]]
+   #+OPTIONS: \n:
+   はDOES NOT WORKとあるな...
 * emacs拡張
 #+BEGIN_SRC emacs-lisp
 (defvar diary-root-dir (expand-file-name "~/dev/diary"))
