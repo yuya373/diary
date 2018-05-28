@@ -13,9 +13,10 @@
 (defvar diary-root-dir (expand-file-name "~/dev/diary"))
 (defvar diary-year-format "%Y")
 (defvar diary-month-format "%m")
-(defvar diary-file-format (format "%s/%s/%d.org"
-                                  diary-year-format
-                                  diary-month-format))
+(defvar diary-file-format (concat (format "%s/%s"
+                                          diary-year-format
+                                          diary-month-format)
+                                  "/%d.org"))
 (defun diary-open ()
   (interactive)
   (let ((file (format "%s/%s"
