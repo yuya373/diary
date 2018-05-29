@@ -1,0 +1,253 @@
+* Emacs26.1
+** threads
+   https://www.gnu.org/software/emacs/news/NEWS.26.1
+   #+BEGIN_QUOTE
+   ** Emacs now provides a limited form of concurrency with Lisp threads.
+   Concurrency in Emacs Lisp is "mostly cooperative", meaning that
+   Emacs will only switch execution between threads at well-defined
+   times: when Emacs waits for input, during blocking operations related
+   to threads (such as mutex locking), or when the current thread
+   explicitly yields.  Global variables are shared among all threads, but
+   a 'let' binding is thread-local.  Each thread also has its own current
+   buffer and its own match data.
+   
+   See the chapter "(elisp) Threads" in the ELisp manual for full
+   documentation of these facilities.
+   #+END_QUOTE
+*** from Info manual
+   #+BEGIN_QUOTE
+   37 Threads
+   **********
+
+   Emacs Lisp provides a limited form of concurrency, called “threads”.
+   All the threads in a given instance of Emacs share the same memory.
+   Concurrency in Emacs Lisp is “mostly cooperative”, meaning that Emacs
+   will only switch execution between threads at well-defined times.
+   However, the Emacs thread support has been designed in a way to later
+   allow more fine-grained concurrency, and correct programs should not
+   rely on cooperative threading.
+
+   Currently, thread switching will occur upon explicit request via
+   ‘thread-yield’, when waiting for keyboard input or for process output
+   (e.g., during ‘accept-process-output’), or during blocking operations
+   relating to threads, such as mutex locking or ‘thread-join’.
+
+   Emacs Lisp provides primitives to create and control threads, and
+   also to create and control mutexes and condition variables, useful for
+   thread synchronization.
+
+   While global variables are shared among all Emacs Lisp threads, local
+   variables are not—a dynamic ‘let’ binding is local.  Each thread also
+   has its own current buffer (*note Current Buffer::) and its own match
+   data (*note Match Data::).
+
+   Note that ‘let’ bindings are treated specially by the Emacs Lisp
+   implementation.  There is no way to duplicate this unwinding and
+   rewinding behavior other than by using ‘let’.  For example, a manual
+   implementation of ‘let’ written using ‘unwind-protect’ cannot arrange
+   for variable values to be thread-specific.
+
+   In the case of lexical bindings (*note Variable Scoping::), a closure
+   is an object like any other in Emacs Lisp, and bindings in a closure are
+   shared by any threads invoking the closure.
+
+   * Menu:
+
+   * Basic Thread Functions::      Basic thread functions.
+   * Mutexes::                     Mutexes allow exclusive access to data.
+   * Condition Variables::         Inter-thread events.
+   #+END_QUOTE
+
+  #+BEGIN_QUOTE
+  37.1 Basic Thread Functions
+  ===========================
+
+  Threads can be created and waited for.  A thread cannot be exited
+  directly, but the current thread can be exited implicitly, and other
+  threads can be signaled.
+
+  -- Function: make-thread function &optional name
+  Create a new thread of execution which invokes FUNCTION.  When
+  FUNCTION returns, the thread exits.
+
+  The new thread is created with no local variable bindings in
+  effect.  The new thread’s current buffer is inherited from the
+  current thread.
+
+  NAME can be supplied to give a name to the thread.  The name is
+  used for debugging and informational purposes only; it has no
+  meaning to Emacs.  If NAME is provided, it must be a string.
+
+  This function returns the new thread.
+
+  -- Function: threadp object
+  This function returns ‘t’ if OBJECT represents an Emacs thread,
+  ‘nil’ otherwise.
+
+  -- Function: thread-join thread
+  Block until THREAD exits, or until the current thread is signaled.
+  If THREAD has already exited, this returns immediately.
+
+  -- Function: thread-signal thread error-symbol data
+  Like ‘signal’ (*note Signaling Errors::), but the signal is
+  delivered in the thread THREAD.  If THREAD is the current thread,
+  then this just calls ‘signal’ immediately.  Otherwise, THREAD will
+  receive the signal as soon as it becomes current.  If THREAD was
+  blocked by a call to ‘mutex-lock’, ‘condition-wait’, or
+  ‘thread-join’; ‘thread-signal’ will unblock it.
+
+  -- Function: thread-yield
+  Yield execution to the next runnable thread.
+
+  -- Function: thread-name thread
+  Return the name of THREAD, as specified to ‘make-thread’.
+
+  -- Function: thread-alive-p thread
+  Return ‘t’ if THREAD is alive, or ‘nil’ if it is not.  A thread is
+  alive as long as its function is still executing.
+
+  -- Function: thread--blocker thread
+  Return the object that THREAD is waiting on.  This function is
+  primarily intended for debugging, and is given a “double hyphen”
+  name to indicate that.
+
+  If THREAD is blocked in ‘thread-join’, this returns the thread for
+  which it is waiting.
+
+  If THREAD is blocked in ‘mutex-lock’, this returns the mutex.
+
+  If THREAD is blocked in ‘condition-wait’, this returns the
+  condition variable.
+
+  Otherwise, this returns ‘nil’.
+
+  -- Function: current-thread
+  Return the current thread.
+
+  -- Function: all-threads
+  Return a list of all the live thread objects.  A new list is
+  returned by each invocation.
+
+  When code run by a thread signals an error that is unhandled, the
+  thread exits.  Other threads can access the error form which caused the
+  thread to exit using the following function.
+
+  -- Function: thread-last-error
+  This function returns the last error form recorded when a thread
+  exited due to an error.  Each thread that exits abnormally
+  overwrites the form stored by the previous thread’s error with a
+  new value, so only the last one can be accessed.
+
+  #+END_QUOTE
+
+  #+BEGIN_QUOTE
+  37.2 Mutexes
+  ============
+
+  A “mutex” is an exclusive lock.  At any moment, zero or one threads may
+  own a mutex.  If a thread attempts to acquire a mutex, and the mutex is
+  already owned by some other thread, then the acquiring thread will block
+  until the mutex becomes available.
+
+  Emacs Lisp mutexes are of a type called “recursive”, which means that
+  a thread can re-acquire a mutex it owns any number of times.  A mutex
+  keeps a count of how many times it has been acquired, and each
+  acquisition of a mutex must be paired with a release.  The last release
+  by a thread of a mutex reverts it to the unowned state, potentially
+  allowing another thread to acquire the mutex.
+
+  -- Function: mutexp object
+  This function returns ‘t’ if OBJECT represents an Emacs mutex,
+  ‘nil’ otherwise.
+
+  -- Function: make-mutex &optional name
+  Create a new mutex and return it.  If NAME is specified, it is a
+  name given to the mutex.  It must be a string.  The name is for
+  debugging purposes only; it has no meaning to Emacs.
+
+  -- Function: mutex-name mutex
+  Return the name of MUTEX, as specified to ‘make-mutex’.
+
+  -- Function: mutex-lock mutex
+  This will block until this thread acquires MUTEX, or until this
+  thread is signaled using ‘thread-signal’.  If MUTEX is already
+  owned by this thread, this simply returns.
+
+  -- Function: mutex-unlock mutex
+  Release MUTEX.  If MUTEX is not owned by this thread, this will
+  signal an error.
+
+  -- Macro: with-mutex mutex body...
+  This macro is the simplest and safest way to evaluate forms while
+  holding a mutex.  It acquires MUTEX, invokes BODY, and then
+  releases MUTEX.  It returns the result of BODY.
+
+  #+END_QUOTE
+  #+BEGIN_QUOTE
+  37.3 Condition Variables
+  ========================
+
+  A “condition variable” is a way for a thread to block until some event
+  occurs.  A thread can wait on a condition variable, to be woken up when
+  some other thread notifies the condition.
+
+  A condition variable is associated with a mutex and, conceptually,
+  with some condition.  For proper operation, the mutex must be acquired,
+  and then a waiting thread must loop, testing the condition and waiting
+  on the condition variable.  For example:
+
+  (with-mutex mutex
+  (while (not global-variable)
+  (condition-wait cond-var)))
+
+  The mutex ensures atomicity, and the loop is for robustness—there may
+  be spurious notifications.
+
+  Similarly, the mutex must be held before notifying the condition.
+  The typical, and best, approach is to acquire the mutex, make the
+  changes associated with this condition, and then notify it:
+
+  (with-mutex mutex
+  (setq global-variable (some-computation))
+  (condition-notify cond-var))
+
+  -- Function: make-condition-variable mutex &optional name
+  Make a new condition variable associated with MUTEX.  If NAME is
+  specified, it is a name given to the condition variable.  It must
+  be a string.  The name is for debugging purposes only; it has no
+  meaning to Emacs.
+
+  -- Function: condition-variable-p object
+  This function returns ‘t’ if OBJECT represents a condition
+  variable, ‘nil’ otherwise.
+
+  -- Function: condition-wait cond
+  Wait for another thread to notify COND, a condition variable.  This
+  function will block until the condition is notified, or until a
+  signal is delivered to this thread using ‘thread-signal’.
+
+  It is an error to call ‘condition-wait’ without holding the
+  condition’s associated mutex.
+
+  ‘condition-wait’ releases the associated mutex while waiting.  This
+  allows other threads to acquire the mutex in order to notify the
+  condition.
+
+  -- Function: condition-notify cond &optional all
+  Notify COND.  The mutex with COND must be held before calling this.
+  Ordinarily a single waiting thread is woken by ‘condition-notify’;
+  but if ALL is not ‘nil’, then all threads waiting on COND are
+  notified.
+
+  ‘condition-notify’ releases the associated mutex while waiting.
+  This allows other threads to acquire the mutex in order to wait on
+  the condition.
+
+  -- Function: condition-name cond
+  Return the name of COND, as passed to ‘make-condition-variable’.
+
+  -- Function: condition-mutex cond
+  Return the mutex associated with COND.  Note that the associated
+  mutex cannot be changed.
+
+  #+END_QUOTE
